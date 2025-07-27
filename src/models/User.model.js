@@ -1,4 +1,4 @@
-import mongoose from 'mongoose';
+ import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
 
 const userSchema = new mongoose.Schema({
@@ -8,10 +8,12 @@ const userSchema = new mongoose.Schema({
     trim: true,
     maxlength: [100, 'Name cannot exceed 100 characters']
   },
-  roomNumber: {
-     type: String, 
-     required: true 
-    },
+  // roomNumber: {
+  //    type: String, 
+  //     required: function () {
+  //   return this.role === 'student'; // Only required for students
+  // },
+  //   },
   email: {
     type: String,
     required: true,
