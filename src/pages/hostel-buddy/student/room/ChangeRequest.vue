@@ -1,582 +1,224 @@
- [media pointer="file-service://file-66i7RFMdjA4xwt5oJdbQYG"]
-<template>
-  <Navbar_Student/>
-  <div class="room-change-container">
-    <h1>Room Change Request</h1>
-    
-    <div class="cards-wrapper">
-      <!-- Left Card - Request Form -->
-      <div class="form-card">
-        <div class="current-room">
-          <h3>Your Current Room</h3>
-      <div class="room-info">
-        <span><strong>Room :</strong> {{ currentRoom.room }}</span>
-        <span><strong>Block :</strong> {{ currentRoom.block }}</span>
-      </div>
-    </div>
-
-        <form @submit.prevent="submitRequest" class="request-form">
-          <div class="form-group">
-            <label for="preferred-block">Preferred Block</label>
-           <select id="preferred-block" v-model="formData.preferredBlock" required>
-            <option value="">Select Block</option>
-            <option value="A">Block A</option>
-            <option value="B">Block B</option>
-            <option value="C">Block C</option>
-        </select>
-          </div>
-
-          <div class="form-group">
-            <label for="preferred-room">Preferred Room Number</label>
-            <input 
-              type="text" 
-              id="preferred-room" 
-              v-model="formData.preferredRoomNumber" 
-              placeholder="e.g. B-305" 
-              required
-            >
-          </div>
-
-          <div class="form-group">
-            <label for="reason">Reason for Change</label>
-            <textarea 
-              id="reason" 
-              v-model="formData.reason" 
-              rows="4" 
-              placeholder="Please explain your reason for requesting a room change..."
-              required
-            ></textarea>
-          </div>
-
-          <button type="submit" class="submit-btn">
-            Submit Request
-          </button>
-        </form>
-      </div>
-    <div v-if="latestRequest">
-      <!-- Right Card - Status Process -->
-      <div class="status-process-card">
-        <h3>Request Status</h3>
-        <div class="process-steps">
-          <div class="step" :class="{ active: currentStep >= 1, completed: currentStep >= 1 }">
-            <div class="step-number">1</div>
-            <div class="step-content">
-              <div class="step-title">Pending</div>
-              <div class="step-description">Request submitted for review</div>
-            </div>
-            <div class="step-check" v-if="currentStep >= 1">✓</div>
-          </div>
-          
-          <div class="step" :class="{ active: currentStep >= 2, completed: currentStep >= 2 }">
-            <div class="step-number">2</div>
-            <div class="step-content">
-              <div class="step-title">Approved</div>
-              <div class="step-description">Request approved by admin</div>
-            </div>
-            <div class="step-check" v-if="currentStep >= 2">✓</div>
-          </div>
-          
-          <div class="step" :class="{ active: currentStep >= 3, completed: currentStep >= 3 }">
-            <div class="step-number">3</div>
-            <div class="step-content">
-              <div class="step-title">Rejected</div>
-              <div class="step-description">Request not approved</div>
-            </div>
-            <div class="step-check" v-if="currentStep >= 3">✓</div>
-          </div>
-        </div>
-      </div>
-  <!-- View History Button (aligned below status tracker) -->
-<div class="history-btn-wrapper">
-  <button class="submit-btn" @click="showHistoryModal = true">
-    View History
-  </button>
-</div>
-   </div>
-      
-  <div v-if="showHistoryModal" class="modal-overlay">
-  <div class="history-popup">
-    <h3>Your Room Change History</h3>
-    <div v-if="requestHistory.length === 0">
-      <p>No history found.</p>
-    </div>
-    <div v-else>
-      <div
-        v-for="(item, index) in requestHistory"
-        :key="item._id"
-        class="history-card"
-      >
-        <p><strong>Preferred Block:</strong> {{ item.preferredBlock }}</p>
-        <p><strong>Preferred Room:</strong> {{ item.preferredRoomNumber }}</p>
-        <p><strong>Status:</strong> {{ item.status }}</p>
-        <p><strong>Reason:</strong> {{ item.reason }}</p>
-        <p><strong>Date:</strong> {{ formatDate(item.createdAt) }}</p>
-      </div>
-    </div>
-    <button class="close-btn" @click="showHistoryModal = false">Close</button>
+ <template>
+  <div>
+    <Navbar_warden />
+    <div class="approval-container">
+      <h2 class="approval-title">Room Change Requests</h2>
+      <div class="approval-cards">
+ <div v-if="pendingRequests.length > 0">
+  <div 
+    v-for="request in pendingRequests" 
+    :key="request._id" 
+    class="request-card">
+    <div class="request-content">
+  <div class="request-details">
+    <p><strong>Student:</strong> {{ request.student.name }}</p>
+    <p><strong>Preferred Block:</strong> {{ request.preferredBlock }}</p>
+    <p><strong>Preferred Room:</strong> {{ request.preferredRoomNumber }}</p>
+    <p><strong>Reason:</strong> {{ request.reason }}</p>
   </div>
+  <div class="button-group">
+    <button @click="updateStatus(request._id, 'Approved')" class="approve-btn">Approve</button>
+    <button @click="updateStatus(request._id, 'Rejected')" class="reject-btn">Reject</button>
+  </div>
+  <p v-if="successMessageMap[request._id]" class="success-message">
+  {{ successMessageMap[request._id] }}
+</p>
+
 </div>
 
-
-
-    </div>
   </div>
-  <Footer/>
+</div>
+<div v-else>
+  <p class="no-requests-message">No pending requests to be found.</p>
+</div>
+
+</div>
+</div>
+</div>
+  <Footer />
 </template>
- 
-<script>
-import axios from 'axios'; 
-import Navbar_Student from '../../../../components/Navbar_Student.vue';
-import Footer from '../../../../components/Footer.vue';
 
-export default {
-  name: 'RoomChangeRequest',
-  components: {
-    Navbar_Student,
-    Footer
+<script>
+import Navbar_warden from '@/components/Navbar_Warden.vue';
+import axios from 'axios';
+import Footer from '@/components/Footer.vue';
+
+ export default {
+  name: 'RoomChangeApproval',
+  components: { 
+    Navbar_warden,
+    Footer 
   },
   data() {
     return {
-      formData: {
-        preferredBlock: '',
-        preferredRoomNumber: '',
-        reason: ''
-      },
-      latestRequest: null,
-      currentStep: 0,// 0 = No request, 1 = Pending, 2 = Approved, 3 = Rejected
-
-      currentRoom: {
-      room: '',
-      block: '',
-      floor: '',
-      // bedType: ''
-    },
-    showHistoryModal: false,
-    requestHistory: []
-  
+      requests: [],
+      successMessageMap: {} // holds messages by request ID
     };
   },
-  methods: {
-    async submitRequest() {
-       const token = localStorage.getItem('token');
-     const config = {
-       headers: {
-      Authorization: `Bearer ${token}`
-    }
-  };
-      try {
-        const { preferredBlock, preferredRoomNumber, reason } = this.formData;
-
-        await axios.post('/api/v1/room-change', {
-          preferredBlock,
-          preferredRoomNumber,
-          reason,
-        },config);
-       alert('Room change request submitted!');
-        this.formData = { preferredBlock: '', preferredRoomNumber: '', reason: '' };
-        await this.fetchLatestRequest(); // Refresh latest request after submission
-      } catch (error) {
-        alert('Error submitting request');
-        console.error(error);
-      }
-    },
-    async fetchLatestRequest() {
-       const token = localStorage.getItem('token');
-       const config = {
-         headers: {
-      Authorization: `Bearer ${token}`
-    }
-  };
+  async mounted() {
+  await this.fetchRequests(); // use the reusable function
+  },
+ 
+   methods: {
+  async fetchRequests() {
+    const token = localStorage.getItem('token');
     try {
-      const res = await axios.get('http://localhost:5000/api/v1/room-change/latest',config);
-      this.latestRequest = res.data;
-
-       const status = res.data?.status?.toLowerCase();
-if (!status) {
-  this.currentStep = 0;
-  return;
-}
-
-switch (status) {
-  case 'pending':
-    this.currentStep = 1;
-    break;
-  case 'approved':
-    this.currentStep = 2;
-    break;
-  case 'rejected':
-    this.currentStep = 3;
-    break;
-  default:
-    this.currentStep = 0;
-}
-} catch (err) {
-      console.error("Error fetching latest request:", err);
-      const status = res.data?.status?.toLowerCase();
-      this.currentStep = 0;
-    }
-    },
-
-   async fetchStudentRoomDetails() {
-    try {
-      const response = await axios.get('http://localhost:5000/api/v1/users/me');
-      const user = response.data;
-
-      this.currentRoom.room = user.roomNumber || 'N/A';
-      this.currentRoom.block = user.block || 'N/A';
-      this.currentRoom.floor = user.floor || 'N/A';
-      this.currentRoom.bedType = user.bedType || 'Single Bed (3ft x 6ft)';
-    } catch (error) {
-      console.error('Error fetching room details:', error);
+      const res = await axios.get('http://localhost:5000/api/v1/room-change/all', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      this.requests = res.data.data;
+    } catch (err) {
+      console.error('Error fetching requests:', err);
     }
   },
-
-  async fetchRequestHistory() {
-  const token = localStorage.getItem('token');
-  const config = {
-    headers: {
-      Authorization: `Bearer ${token}`
-    }
-  };
+ async updateStatus(requestId, status) {
   try {
-    const res = await axios.get('/api/v1/room-change/history', config);
-    this.requestHistory = res.data;
+    const token = localStorage.getItem('token');
+    const response = await axios.put(
+      `http://localhost:5000/api/v1/room-change/${requestId}/status`,
+      { status },
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        }
+      }
+    );
+  alert(`You are ${status} the request`);
+  this.fetchRequests();
   } catch (error) {
-    console.error("Failed to fetch request history:", error);
+    console.error("Status update error:", error);
+    alert("Failed to update status");
   }
-},
-formatDate(date) {
-  return new Date(date).toLocaleDateString();
 }
 
 },
-created() {
-    this.fetchLatestRequest();
-    this.fetchStudentRoomDetails(); // fetch current room details
-    this.fetchRequestHistory();
-  },
+
+computed: {
+  pendingRequests() {
+    return this.requests.filter(request => request.status === 'Pending');
+  }
+}
+
 };
 </script>
 
 <style scoped>
-.room-change-container {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 30px;
+.approval-container {
+  padding: 2rem;
+  font-family: 'Segoe UI', sans-serif;
 }
 
-h1 {
-  color: #1BBC9B;
+.approval-title {
+  color: #00b894;
   text-align: center;
-  margin-bottom: 30px;
-  font-size: 28px;
-  border-bottom: 2px solid #1BBC9B;
+  font-size: 35px;
+  margin-bottom: 2rem;
+  border-bottom: 3px solid #1BBC9B;
   padding-bottom: 10px;
+  max-width: 800px;
+  margin-left: 300px;
+  margin-right: auto;
 }
 
-.cards-wrapper {
+.approval-cards {
   display: flex;
-  gap: 30px;
+  flex-wrap: wrap;
+  gap: 2rem;
+  justify-content: center;
+  margin-left: 0%;
 }
 
-.form-card {
-  flex: 1;
-  background: white;
+.request-card {
+  background: #fff;
+  padding: 1.5rem;
   border-radius: 12px;
-  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-  padding: 25px;
-  width:1000px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  width: 750px;
+  transition: 0.3s ease;
+  margin-left: 0px;
+  line-height: 35px;
+  margin-bottom: 10px;
 }
 
-.status-process-card {
-  background: white;
-  border-radius: 12px;
-  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-  padding: 25px;
+.request-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start; 
+}
+
+.request-details {
   flex: 1;
-  max-width: 350px;
+  line-height: 2;
 }
 
-h3 {
-  color: #1BBC9B;
-  margin-bottom: 15px;
-}
-.current-room {
-  background: #f8f8f8;
-  padding: 20px;
-  border-radius: 10px;
-  margin-bottom: 30px;
-  text-align: center; /* Added center alignment */
-}
-.current-room h3{
-  font-size: 20px;
-}
-.room-info {
+ .button-group {
+  margin-top: 0;      /* Remove extra margin at the top */
+  padding-top: 0;     /* Remove extra padding if any */
   display: flex;
   flex-direction: column;
   gap: 10px;
-  font-size: 15px;
-  align-items: center; /* Center align items horizontally */
-}
-
-.request-form {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
-
-
-.form-group {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-label {
-  font-weight: 600;
-  color: #555;
-}
-
-input, select, textarea {
-  padding: 12px;
-  border: 1px solid #ddd;
-  border-radius: 6px;
-  font-size: 16px;
-  transition: border 0.3s;
-}
-
-input:focus, select:focus, textarea:focus {
-  border-color: #1BBC9B;
-  outline: none;
-}
-
-textarea {
-  resize: vertical;
-  min-height: 100px;
-}
-
-.submit-btn {
-  background: #1BBC9B;
-  color: white;
-  border: none;
-  padding: 14px;
-  border-radius: 6px;
-  font-size: 16px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s;
-  margin-top: 10px;
-  width: 200px;
-  align-self: center;
-}
-
-.submit-btn:hover {
-  background: #15967D;
-  transform: translateY(-2px);
-  box-shadow: 0 4px 8px rgba(27, 188, 155, 0.2);
-}
-
-.process-steps {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-  margin-top: 20px;
-}
-
-.step {
-  display: flex;
   align-items: center;
-  gap: 15px;
-  position: relative;
-  padding-bottom: 20px;
 }
 
-.step:not(:last-child)::after {
-  content: '';
-  position: absolute;
-  left: 16px;
-  top: 36px;
-  bottom: -20px;
-  width: 2px;
-  background: #e0e0e0;
+.request-card:hover {
+  transform: translateY(-5px);
 }
 
-.step-number {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  background: #e0e0e0;
-  color: #666;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+.status {
   font-weight: bold;
-  flex-shrink: 0;
-  z-index: 1;
-}
-
-.step-content {
-  flex-grow: 1;
-}
-
-.step-title {
-  font-weight: 600;
-  color: #666;
-  margin-bottom: 4px;
-}
-
-.step-description {
-  font-size: 14px;
-  color: #999;
-}
-
-.step-check {
-  color: white;
-  background: #1BBC9B;
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 12px;
-  flex-shrink: 0;
-}
-
-/* Active step styling */
-.step.active .step-number {
-  background: #1BBC9B;
-  color: white;
-}
-
-.step.active .step-title {
-  color: #1BBC9B;
-}
-
-/* Completed step styling */
-.step.completed .step-number {
-  background: #1BBC9B;
-  color: white;
-}
-
-.step.completed .step-title {
-  color: #1BBC9B;
-}
-
-.step.completed::after {
-  background: #1BBC9B;
-}
-
-@media (max-width: 768px) {
-  .room-change-container {
-    padding: 20px;
-  }
-  
-  .cards-wrapper {
-    flex-direction: column;
-  }
-  
-  .form-card, .status-process-card {
-    padding: 20px;
-    max-width: 100%;
-  }
-}
-
-.modal-content-stacked {
-  background: white;
-  padding: 30px;
-  border-radius: 10px;
-  max-width: 600px;
-  width: 90%;
-  max-height: 80vh;
-  overflow-y: auto;
-  box-shadow: 0 2px 20px rgba(0, 0, 0, 0.3);
-}
- 
-.history-card {
-  border-left: 5px solid #1BBC9B;
-  padding: 15px 20px;
-  margin-bottom: 15px;
-  border-radius: 10px;
-  background: #f4f4f4;
-}
-
-.history-card p {
-  margin: 5px 0;
-}
-
-.status.pending {
-  color: #FFA500;
-  font-weight: bold;
-}
-
-.status.approved {
-  color: #28a745;
-  font-weight: bold;
-}
-
-.status.rejected {
-  color: #dc3545;
-  font-weight: bold;
-}
- 
-
-.history-btn-wrapper {
-  margin-top: 40px;
-  display: flex;
-  justify-content: center;
-}
-.history-btn-wrapper .submit-btn {
-  background-color: #1BBC9B;
-  width: 150px;
-}
-
-.close-btn{
-  background-color: #ef4253;
-  width:80px;
+  padding: 4px 10px;
   border-radius: 8px;
-  height:40px;
-  color:white;
-  font-size: 17px;
-  border-style: none;
-  margin-left: 190px;
-  margin-top: 80px;
-  }
-
-  .modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
-  background-color: rgba(0, 0, 0, 0.6);
-  z-index: 999;
-  display: flex;
-  justify-content: center;
-  align-items: center;
 }
-.history-popup {
-  background-color: #fff;
-  padding: 25px 30px;
-  border-radius: 12px;
-  max-width: 500px;
-  width: 90%;
-  max-height: 80vh;
-  overflow-y: auto;
-  box-shadow: 0 0 25px rgba(0, 0, 0, 0.3);
-  z-index: 1000;
-}
-
-.history-popup h3{
-  text-align: center;
-  font-size: 30px;
-}
-
-.history-popup p{
-  text-align: center;
+ 
+.approve-btn,
+.reject-btn {
+  flex: 1;
+  padding: 0.6rem;
+  border-radius: 8px;
+  cursor: pointer;
+  width:120px;
   font-size: 20px;
-  margin-top: 60px;
-  font-style: italic;
-  color:#666;
+  font-weight: 700;
 }
-</style> 
+
+.approve-btn {
+  background-color: white;
+  color: #1BBC9B;
+  border: 2px solid #1BBC9B;
+}
+
+.reject-btn {
+  background-color: white;
+  color: #cf1635;
+  border: 2px solid red;
+}
+
+.approve-btn:hover {
+  background-color: #1BBC9B;
+  color:white;
+  border-style: none;
+
+}
+
+.reject-btn:hover {
+  background-color: #c0392b;
+  color:white;
+  border-style: none;
+}
+
+.no-requests-message {
+  text-align: center;
+  font-size: 25px;
+  color: #777;
+  margin-top: 4rem;
+  font-style: italic;
+  margin-bottom: 30px;
+}
+.success-message {
+  color: green;
+  font-weight: bold;
+  margin-top: 5px;
+}
+
+</style>
