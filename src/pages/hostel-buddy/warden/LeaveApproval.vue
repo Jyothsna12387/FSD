@@ -1,9 +1,10 @@
-<template>
+ <template>
   <Navbar_warden/>
   <div class="leave-approval-container">
     <h2 class="approval-title">Leave Approval Requests</h2>
     <div class="leave-approval-content">
       <div class="requests-section">
+        <div v-if="leaveRequests.length > 0">
         <div 
           v-for="(request, index) in leaveRequests" 
           :key="request.id"
@@ -32,6 +33,9 @@
           </div>
         </div>
       </div>
+      <div v-else class="no-requests-message">No leave requests found.</div>
+      </div>
+      
       
       <!-- <div class="approval-image">
         <img src="@/assets/images/approve&reject.jpg" alt="Approval Status Illustration">
@@ -98,6 +102,7 @@ export default {
           }
         });
         this.leaveRequests[index].status = status;
+         this.fetchPendingLeaves();
       } catch (err) {
         console.error(`Failed to ${status} leave:`, err);
         alert(`Error while ${status}ing leave`);
@@ -286,5 +291,12 @@ export default {
   }
 }
 
+.no-requests-message {
+  text-align: center;
+  font-size: 20px;
+  color: #888;
+  margin-top: 50px;
+  margin-bottom: 40px;
+}
 
 </style>
