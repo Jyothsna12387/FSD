@@ -1,4 +1,4 @@
-<template>
+ <template>
     <Navbar_Student/><div class ="Theme">
   <div class="leave-application-container">
     <div class="cards-wrapper">
@@ -281,13 +281,19 @@ export default {
   width:1000px;
   padding: 20px;
 }
-
+ 
 .history-card {
   width: 450px;
   padding-top:60px;
   margin-top: 30px;
+  margin-left: 30px;
 }
-
+.history-card  h2{
+  margin-top: 50px;
+  padding-top: 50px;
+  text-align: center;
+  font-size: 30px;
+}
 h1 {
   color: #1BBC9B;
   text-align: left;
