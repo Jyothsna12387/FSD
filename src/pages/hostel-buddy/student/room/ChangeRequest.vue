@@ -102,6 +102,7 @@
       
   <div v-if="showHistoryModal" class="modal-overlay">
   <div class="history-popup">
+    <span class="close-icon" @click="showHistoryModal = false">×</span>
     <h3>Your Room Change History</h3>
     <div v-if="requestHistory.length === 0">
       <p>No history found.</p>
@@ -120,7 +121,7 @@
       </div>
       </div>
     </div>
-    <button class="close-btn" @click="showHistoryModal = false">Close</button>
+
   </div>
 </div>
 
@@ -557,17 +558,32 @@ textarea {
   width: 150px;
 }
 
-.close-btn{
-  background-color: #ef4253;
-  width:80px;
-  border-radius: 8px;
-  height:40px;
-  color:white;
-  font-size: 17px;
-  border-style: none;
-  margin-left: 190px;
-  margin-top: 50px;
-  }
+ 
+.close-icon {
+  position: absolute;
+  top: 18px;
+  right: 28px;
+  width: 32px;
+  height: 32px;
+  line-height: 32px;
+  text-align: center;
+  font-size: 28px;
+  font-weight: bold;
+  color: #dc3545;
+  background-color: white;
+  border-radius: 50%;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  cursor: pointer;
+  z-index: 1001;
+  transition: all 0.2s ease-in-out;
+  margin-top: 18px;
+}
+
+.close-icon:hover {
+  background-color: #dc3545;
+  color: white;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
 
   .modal-overlay {
   position: fixed;
@@ -582,6 +598,7 @@ textarea {
   align-items: center;
 }
 .history-popup {
+  position: relative;
   background-color: #fff;
   padding: 25px 30px;
   border-radius: 12px;
@@ -596,6 +613,8 @@ textarea {
 .history-popup h3{
   text-align: center;
   font-size: 30px;
+  margin-right: 20px;
+  margin-top: 30px;
 }
 
 .history-popup p{
