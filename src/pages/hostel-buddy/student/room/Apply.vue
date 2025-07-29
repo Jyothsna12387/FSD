@@ -1,123 +1,133 @@
-<template>
-  <Navbar_student/>
-  <div class="room-application-container">
-    
+  <template>
+  <Navbar_student />
 
-    <!-- Title -->
+  <div class="room-application-container">
     <h1 class="application-title">Room Application</h1>
 
-    <!-- Form -->
     <form @submit.prevent="submitApplication" class="application-form">
-      <!-- Row 1 -->
+      <!-- Building and Room Type -->
       <div class="form-row">
         <div class="form-group">
-          <label for="preferred-building">Preferred Building:</label>
-          <select id="preferred-building" v-model="form.preferredBuilding" required>
-            <option value="">Select Building</option>
-            <option value="A">Building A</option>
-            <option value="B">Building B</option>
-            <option value="C">Building C</option>
+          <label>Preferred Building:</label>
+          <select v-model="form.preferredBuilding" required>
+            <option disabled value="">Select Building</option>
+            <option>Building A</option>
+            <option>Building B</option>
+            <option>Building C</option>
           </select>
         </div>
 
         <div class="form-group">
-          <label for="room-type">Room Type:</label>
-          <select id="room-type" v-model="form.roomType" required>
-            <option value="">Select Room Type</option>
-            <option value="single">Single Occupancy</option>
-            <option value="double">Double Occupancy</option>
-            <option value="shared">Shared (4 person)</option>
+          <label>Room Type:</label>
+          <select v-model="form.roomType" required>
+            <option disabled value="">Select Room Type</option>
+            <option>Single Occupancy</option>
+            <option>Double Occupancy</option>
+            <option>Shared 4 Persons</option>
           </select>
         </div>
       </div>
 
-      <!-- Row 2 -->
+      <!-- Roommates & Special Requirements -->
       <div class="form-row">
         <div class="form-group">
-          <label for="preferred-mates">Preferred Roommates (if any):</label>
+          <label>Preferred Roommates (if any):</label>
           <input
-            type="text"
-            id="preferred-mates"
-            v-model="form.preferredMates"
+            v-model="form.preferredRoommates"
             placeholder="Enter student IDs separated by commas"
           />
         </div>
 
         <div class="form-group">
-          <label for="special-requirements">Special Requirements:</label>
+          <label>Special Requirements:</label>
           <textarea
-            id="special-requirements"
             v-model="form.specialRequirements"
             placeholder="Any medical conditions or special needs"
           ></textarea>
         </div>
       </div>
 
-      <!-- Checkbox -->
-      <div class="form-row">
-        <div class="form-group full-width checkbox-wrapper">
-          <label class="checkbox-label">
-            <input
-              type="checkbox"
-              id="terms-agreement"
-              v-model="form.termsAgreed"
-              required
-            />
-            <span>I agree to the hostel rules and regulations</span>
-          </label>
-        </div>
+      <!-- Rules Agreement and Button -->
+      <div class="form-checkbox">
+        <input type="checkbox" v-model="form.agreedToRules" required />
+        <label>I agree to the hostel rules and regulations</label>
       </div>
 
-      <!-- Submit Button -->
       <div class="form-actions">
         <button type="submit" class="submit-btn">Submit Application</button>
+        <router-link to="/student-dashboard" class="back-link">← Back to Dashboard</router-link>
       </div>
-      <!-- Back Navigation -->
-    <div class="back-nav">
-      <button @click="goBack" class="back-link">
-        ← Back to Dashboard
-      </button>
-    </div>
+
+      <p v-if="errorMsg" class="error-msg">{{ errorMsg }}</p>
+      <p v-if="successMsg" class="success-msg">{{ successMsg }}</p>
     </form>
   </div>
-  <Footer/>
 </template>
 
 <script>
-import Navbar_student from '../../../../components/Navbar_student.vue';
-import Footer from '@/components/Footer.vue'
+import axios from 'axios';
+import Navbar_student from '@/components/Navbar_student.vue';
 
 export default {
-  name: 'RoomApplication',
-   components: {
-    Navbar_student,
-    Footer
-  },
+  components: { Navbar_student },
   data() {
     return {
       form: {
         preferredBuilding: '',
         roomType: '',
-        preferredMates: '',
+        preferredRoommates: '',
         specialRequirements: '',
-        termsAgreed: false,
+        agreedToRules: false,
       },
+      errorMsg: '',
+      successMsg: '',
     };
   },
   methods: {
-    goBack() {
-      this.$router.push({name: 'StudentDashboard'} );
+    async submitApplication() {
+      try {
+        // Extract token from localStorage (assumes you stored it after login)
+        const token = localStorage.getItem('token');
+
+        const response = await axios.post(
+          'http://localhost:5000/api/v1/room-application',
+          {
+            ...this.form,
+            preferredRoommates: this.form.preferredRoommates
+              .split(',')
+              .map((id) => id.trim()), // Convert to array
+          },
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+
+        this.successMsg = 'Room application submitted successfully!';
+        this.errorMsg = '';
+        this.resetForm();
+      } catch (err) {
+        this.errorMsg =
+          err.response?.data?.message || 'Failed to submit application.';
+        this.successMsg = '';
+      }
     },
-    submitApplication() {
-      console.log('Application submitted:', this.form);
-      alert('Application submitted successfully!');
-      this.$router.push({ name: 'StudentDashboard' });
+    resetForm() {
+      this.form = {
+        preferredBuilding: '',
+        roomType: '',
+        preferredRoommates: '',
+        specialRequirements: '',
+        agreedToRules: false,
+      };
     },
   },
 };
 </script>
 
 <style scoped>
+/* Add your styling or reuse existing form styles */
 .room-application-container {
   max-width: 900px;
   margin: 0 auto;
@@ -141,7 +151,7 @@ export default {
   padding: 8px 12px;
   border-radius: 6px;
   cursor: pointer;
-  font-size: 14px;
+  font-size: 18px;
   transition: background-color 0.2s;
 }
 
@@ -226,8 +236,11 @@ export default {
 
 .form-actions {
   display: flex;
+  flex-direction: column;
   justify-content: center;
   margin-top: 10px;
+  margin-left: 270px;
+  gap:20px;
 }
 
 .submit-btn {
@@ -239,10 +252,21 @@ export default {
   font-size: 16px;
   font-weight: 600;
   cursor: pointer;
+  width:220px;
   transition: background-color 0.2s ease-in-out;
 }
 
 .submit-btn:hover {
   background-color: #17a689;
+}
+.error-msg {
+  color: red;
+  text-align: center;
+  font-size: 17px;
+}
+.success-msg {
+  color: green;
+  text-align: center;
+  font-size: 17px;
 }
 </style>
