@@ -1,44 +1,35 @@
- 
-import mongoose from 'mongoose';
+  import mongoose from 'mongoose';
 
 const roomApplicationSchema = new mongoose.Schema({
-  student: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-    required: true,
-  },
-  preferredBuilding: {
+  fieldID: {
     type: String,
-    enum: ['Building A', 'Building B', 'Building C'],
     required: true,
+    trim: true
+  },
+  studentName: {
+    type: String,
+    required: true
   },
   roomType: {
     type: String,
-    enum: ['Single Occupancy', 'Double Occupancy', 'Shared 4 Persons'],
-    required: true,
+    required: true
   },
-  preferredRoommates: {
-    type: [String], // student IDs or names
-    default: [],
-  },
-  specialRequirements: {
+  roomACType: {
     type: String,
-    default: '',
+    required: true
+  },
+  contactNumber: {
+    type: String,
+    required: true
+  },
+  parentMobile: {
+    type: String,
+    required: true
   },
   agreedToRules: {
     type: Boolean,
-    required: true,
-  },
-  status: {
-    type: String,
-    enum: ['Pending', 'Approved', 'Rejected'],
-    default: 'Pending',
-  },
-  submittedAt: {
-    type: Date,
-    default: Date.now,
+    required: true
   }
-});
+}, { timestamps: true });
 
-const RoomApplication = mongoose.model('RoomApplication', roomApplicationSchema, 'room');
-export default RoomApplication;
+export default mongoose.model('RoomApplication', roomApplicationSchema, 'roomapplications');
