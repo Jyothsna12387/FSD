@@ -1,13 +1,12 @@
-import express from 'express';
+ import express from 'express';
 import cors from 'cors';
 import morgan from 'morgan';
 import cookieParser from 'cookie-parser';
 import authRouter from './routes/auth.routes.js';
 import errorHandler from './middleware/errorHandler.js';
 import leaveRoutes from './routes/leave.routes.js';
-import roomChangeRoutes from './routes/roomChange.routes.js';
+import roomChangeRoutes from './routes/roomChange.routes.js'; 
 import roomApplicationRoutes from './routes/roomApplication.routes.js';
-
 
 const app = express();
 
