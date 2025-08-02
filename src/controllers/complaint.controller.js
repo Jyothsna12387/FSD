@@ -1,93 +1,115 @@
-import Complaint from '../models/Complaint.model.js';
+  import Complaint from '../models/Complaint.model.js';
+import asyncHandler from '../utils/asyncHandler.js';
 import AppError from '../utils/appError.js';
+import { cloudinary } from '../config/cloudinary.js'; // ✅ Correct path
 
-// ---------------- CREATE COMPLAINT ---------------- //
-export const createComplaint = async (req, res, next) => {
-  try {
-    const { category, description, imageUrl } = req.body;
+export const createComplaint = asyncHandler(async (req, res, next) => {
+  console.log('💡 Incoming Complaint Request Body:', req.body);
+  console.log('💡 Authenticated User:', req.user);
+  console.log('💡 Uploaded File:', req.file);
 
-    if (!category || !description) {
-      return next(new AppError('Complaint type and description are required', 400));
-    }
-
-    const complaint = await Complaint.create({
-      student: req.user._id,
-      studentName: req.user.fullName,
-      room: req.user.room || req.user.fieldId, // adjust based on User model
-      category,
-      description,
-      imageUrl: imageUrl || '',
-      status: 'pending',
-      date: new Date()
-    });
-
-    res.status(201).json({
-      status: 'success',
-      message: 'Complaint submitted',
-      data: complaint
-    });
-  } catch (err) {
-    next(new AppError('Failed to submit complaint', 500));
+  if (!req.user || !req.user._id) {
+    return next(new AppError('Unauthorized: Missing user info', 401));
   }
-};
 
-// ---------------- GET COMPLAINTS ---------------- //
+  const { category, description } = req.body;
+
+  if (!category || !description) {
+    return next(new AppError('Category and description are required', 400));
+  }
+
+  // ✅ Upload image to Cloudinary if present
+  let imageUrl = '';
+  if (req.file) {
+    const result = await cloudinary.uploader.upload(req.file.path, {
+      folder: 'hostelBuddy/complaints',
+    });
+    imageUrl = result.secure_url;
+  }
+
+  const complaint = await Complaint.create({
+    submittedBy: req.user._id,
+    category,
+    description,
+    imageUrl,
+    status: 'Pending'
+  });
+
+  console.log('✅ Complaint Created:', complaint);
+
+  res.status(201).json({
+    status: 'success',
+    message: 'Complaint submitted successfully',
+    data: complaint
+  });
+});
+
+export const getMyComplaints = asyncHandler(async (req, res, next) => {
+  console.log('📥 Fetching complaints for user:', req.user);
+
+  if (!req.user || !req.user._id) {
+    return next(new AppError('Unauthorized: Missing user info', 401));
+  }
+
+  const complaints = await Complaint.find({ submittedBy: req.user._id }).sort({ date: -1 });
+
+  res.status(200).json({
+    status: 'success',
+    results: complaints.length,
+    data: complaints
+  });
+});
+
 export const getAllComplaints = async (req, res, next) => {
   try {
-    const complaints = await Complaint.find().sort({ date: -1 });
-    res.status(200).json({
-      status: 'success',
-      results: complaints.length,
-      data: complaints
-    });
+    const complaints = await Complaint.find()
+      .populate('submittedBy', 'fullName email roomNumber')
+      .sort({ createdAt: -1 });
+
+    res.status(200).json({ status: 'success', data: complaints });
   } catch (err) {
-    next(new AppError('Failed to fetch complaints', 500));
+    next(err);
   }
 };
 
-// ---------------- GET STUDENT'S OWN COMPLAINTS ---------------- //
-export const getMyComplaints = async (req, res, next) => {
+export const updateComplaintStatus = async (req, res, next) => {
   try {
-    const complaints = await Complaint.find({ student: req.user._id }).sort({ date: -1 });
-    res.status(200).json({
-      status: 'success',
-      results: complaints.length,
-      data: complaints
-    });
-  } catch (err) {
-    next(new AppError('Failed to fetch your complaints', 500));
-  }
-};
-
-// ---------------- UPDATE COMPLAINT STATUS ---------------- //
-export const updateComplaint = async (req, res, next) => {
-  try {
-    const updated = await Complaint.findByIdAndUpdate(
+    const { status, assignedTo } = req.body;
+    const complaint = await Complaint.findByIdAndUpdate(
       req.params.id,
-      req.body,
-      { new: true, runValidators: true }
+      { status, assignedTo },
+      { new: true }
+    );
+    res.status(200).json({ status: 'success', data: complaint });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// ✅ New additional export for status-only update
+export const updateComplaintStatusSimple = async (req, res) => {
+  const { id } = req.params;
+  const { status } = req.body;
+
+  try {
+    const updatedComplaint = await Complaint.findByIdAndUpdate(
+      id,
+      { status },
+      { new: true }
     );
 
-    if (!updated) return next(new AppError('Complaint not found', 404));
+    if (!updatedComplaint) {
+      return res.status(404).json({ message: 'Complaint not found' });
+    }
 
-    res.status(200).json({
-      status: 'success',
-      message: 'Complaint updated',
-      data: updated
-    });
-  } catch (err) {
-    next(new AppError('Failed to update complaint', 500));
+    res.status(200).json({ message: 'Status updated', data: updatedComplaint });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error });
   }
 };
 
-// ---------------- DELETE COMPLAINT (optional) ---------------- //
-export const deleteComplaint = async (req, res, next) => {
-  try {
-    const deleted = await Complaint.findByIdAndDelete(req.params.id);
-    if (!deleted) return next(new AppError('Complaint not found', 404));
-
-    res.status(204).json({ status: 'success', message: 'Complaint deleted' });
-  } catch (err) {
-    next(new AppError('Failed to delete complaint', 500));
-  }
+export const getPendingComplaintCount = async (req, res) => {
+  const count = await Complaint.countDocuments({ status: 'pending' });
+  console.log('💡 Pending complaints:', count);
+  res.status(200).json({ pendingCount: count });
 };
