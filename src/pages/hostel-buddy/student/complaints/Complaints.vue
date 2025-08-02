@@ -1,13 +1,12 @@
-<template>
-  <Navbar_Student/>
+  <template>
+  <Navbar_Student />
   <div class="request-container1">
     <div class="request-container">
       <div class="cards-wrapper">
-
         <!-- Complaint Form -->
         <div class="form-card">
           <h1 class="center-heading">Complaint Submission</h1>
-          
+
           <div class="complaint-section">
             <div class="form-group">
               <label>Complaint Type:</label>
@@ -20,71 +19,75 @@
                 <option>Other</option>
               </select>
             </div>
-            
+
             <div class="form-group">
               <label>Description:</label>
-              <textarea 
-                v-model="complaintDescription" 
+              <textarea
+                v-model="complaintDescription"
                 placeholder="Please describe your complaint in detail..."
                 rows="4"
                 class="form-input"
               ></textarea>
             </div>
-            
+
             <div class="form-group">
               <label>Upload Photo (Optional):</label>
-              <input type="file" @change="handleFileUpload" accept="image/*" class="form-input">
+              <input type="file" @change="handleFileUpload" accept="image/*" class="form-input" />
             </div>
-            
-            <div class="submit-wrapper">
-              <button @click="submitComplaint" class="submit-btn">
-                Submit Complaint
-              </button>
-            </div>
-          </div>
-        </div>
 
-        <!-- Status Tracker -->
-        <div class="status-card">
-          <h2>Request Status</h2>
-          <div class="status-timeline">
-            <div class="status-step" :class="{ 'active': statusStep >= 1 }">
-              <div class="step-number">1</div>
-              <div class="step-content">
-                <h3>Pending</h3>
-                <p>Complaint submitted for review</p>
-              </div>
-            </div>
-            
-            <div class="status-step" :class="{ 'active': statusStep >= 2 }">
-              <div class="step-number">2</div>
-              <div class="step-content">
-                <h3>In Progress</h3>
-                <p>Maintenance team working on it</p>
-              </div>
-            </div>
-            
-            <div class="status-step" :class="{ 'active': statusStep >= 3 }">
-              <div class="step-number">3</div>
-              <div class="step-content">
-                <h3>Resolved</h3>
-                <p>Issue has been resolved</p>
-              </div>
-            </div>
+           <div class="submit-wrapper">
+  <button @click="submitComplaint" class="submit-btn" :disabled="isSubmitting">
+  {{ isSubmitting ? 'Submitting...' : 'Submit Complaint' }}
+</button>
+  <button @click="showHistory = true" class="history-btn">View History</button>
+</div>
+
           </div>
-          
-          <div class="current-status" v-if="currentComplaint">
-            <h3>Current Complaint:</h3>
-            <p><strong>Type:</strong> {{ currentComplaint.type }}</p>
-            <p><strong>Submitted:</strong> {{ formatDate(currentComplaint.date) }}</p>
-            <p><strong>Status:</strong> {{ currentComplaint.status }}</p>
-          </div>
-        </div>
-        
+        </div>    
+      </div>
+      </div>
+
+    </div>
+
+  <!-- ✅ Complaint History Modal -->
+<div v-if="showHistory" class="modal-overlay">
+  <div class="modal-content">
+    <h2>Complaint History</h2>
+    <button class="close-btn" @click="showHistory = false">&times;</button>
+
+    <!-- No complaints -->
+    <div v-if="complaints.length === 0" class="no-complaints">
+      No complaints yet.
+    </div>
+
+    <!-- List of complaints -->
+    <div v-else>
+      <div
+        class="complaint-card"
+        :class="statusBorderClass(c.status)"
+        v-for="(c, index) in complaints"
+        :key="c._id"
+      >
+        <div class="complaint-row"><strong>Category:</strong> <span>{{ c.category }}</span></div>
+        <div class="complaint-row"><strong>Description:</strong> <span>{{ c.description }}</span></div>
+        <div class="complaint-row"><strong>Status:</strong> <span>{{ c.status }}</span></div>
+        <div class="complaint-row"><strong>Date:</strong> <span>{{ formatDate(c.createdAt) }}</span></div>
       </div>
     </div>
   </div>
-  <Footer/>
+</div>
+
+
+<!-- ✅ Add this block to show success/error popup -->
+<div v-if="showResponseModal" class="modal-overlay">
+  <div class="response-modal" :class="{ success: isSuccess, error: !isSuccess }">
+    <h3>{{ isSuccess ? 'Success ✅' : 'Error ❌' }}</h3>
+    <p>{{ responseMessage }}</p>
+    <button @click="closeResponseModal">OK</button>
+  </div>
+</div>
+
+  <Footer />
 </template>
 
 <script>
@@ -97,78 +100,159 @@ export default {
   components: { Footer, Navbar_Student },
   data() {
     return {
+      complaints: [],
       complaintType: '',
       complaintDescription: '',
       uploadedPhoto: null,
       statusStep: 1,
-      currentComplaint: null
-    }
+      currentComplaint: null,
+      showHistory: false,
+      showSuccessModal: false,
+      responseMessage: '',
+      isSuccess: false,
+      isSubmitting: false,
+    };
   },
+
+  watch: {
+  showHistory(newVal) {
+    if (newVal) {
+      document.body.style.overflow = 'hidden'; // Disable scroll
+      this.fetchStudentComplaints(); // Fetch fresh data
+    } else {
+      document.body.style.overflow = ''; // Enable scroll again
+    }
+  }
+},
+
   methods: {
     handleFileUpload(event) {
       this.uploadedPhoto = event.target.files[0];
     },
+
     formatDate(dateStr) {
       return new Date(dateStr).toLocaleString('en-IN');
     },
+
+  closeResponseModal() {
+  this.showResponseModal = false;
+  this.responseMessage = '';
+  this.isSuccess = false;
+},
+
+    async fetchStudentComplaints() {
+  try {
+    const token = localStorage.getItem('token');
+    const res = await axios.get('/api/v1/complaints/my', {
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    });
+
+    this.complaints = res.data.data;
+
+    if (this.complaints.length > 0) {
+      this.currentComplaint = this.complaints[0];
+
+      switch (this.currentComplaint.status) {
+        case 'In Progress':
+          this.statusStep = 2;
+          break;
+        case 'Resolved':
+          this.statusStep = 3;
+          break;
+        default:
+          this.statusStep = 1;
+      }
+    }
+  } catch (err) {
+    console.error('❌ Error fetching student complaints:', err);
+  }
+},
     async submitComplaint() {
+      this.isSubmitting = true;
+      await this.$nextTick();
+
+      const token = localStorage.getItem('token');
+
       if (!this.complaintType || !this.complaintDescription) {
-        alert('Please fill in all required fields');
-        return;
+        this.isSuccess = false;
+        this.responseMessage = '⚠️ Please fill in all fields.';
+        this.showResponseModal = true;
+        this.isSubmitting = false; 
+         return;
       }
 
       try {
-        let imageUrl = '';
+        const formData = new FormData();
+        formData.append('category', this.complaintType);
+        formData.append('description', this.complaintDescription);
 
         if (this.uploadedPhoto) {
-          const formData = new FormData();
-          formData.append('file', this.uploadedPhoto);
-          formData.append('upload_preset', 'your_preset'); // 🔁 Replace with actual preset
-          const cloudRes = await axios.post(
-            'https://api.cloudinary.com/v1_1/your_cloud_name/image/upload', // 🔁 Replace with actual Cloudinary name
-            formData
-          );
-          imageUrl = cloudRes.data.secure_url;
+          formData.append('image', this.uploadedPhoto);
         }
 
-        const res = await axios.post('/api/v1/complaints', {
-          category: this.complaintType,
-          description: this.complaintDescription,
-          imageUrl
+        await axios.post('/api/v1/complaints', formData, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'multipart/form-data'
+          }
         });
 
-        this.currentComplaint = {
-          type: res.data.category,
-          description: res.data.description,
-          date: res.data.date,
-          status: res.data.status
-        };
+        //  this.showResponseModal = true;
+         this.isSuccess = true;
+        this.responseMessage = '✅ Complaint submitted successfully!';
+        this.resetComplaintForm();
+        this.fetchStudentComplaints(); // Refresh list
 
-        this.statusStep = 1;
-        alert('Complaint submitted successfully!');
-
-        // Simulated status change (optional visual cue)
-        setTimeout(() => {
-          this.statusStep = 2;
-          this.currentComplaint.status = 'In Progress';
-        }, 3000);
-        setTimeout(() => {
-          this.statusStep = 3;
-          this.currentComplaint.status = 'Resolved';
-        }, 8000);
-
-        this.complaintType = '';
-        this.complaintDescription = '';
-        this.uploadedPhoto = null;
-
+        // Auto-close after 3 seconds
+       setTimeout(() => {
+              this.showResponseModal = false;
+          }, 3000);
       } catch (err) {
-        console.error('Error submitting complaint:', err);
-        alert('Failed to submit complaint. Please try again.');
+        console.error('Complaint submission error:', err);
+        // alert(err.response?.data?.message || 'Failed to submit complaint.');
+        this.isSuccess = false;
+       this.responseMessage = '❌ Failed to submit complaint. Please try again.';
+       this.showResponseModal = true;        
       }
-    }
+      finally {
+    this.showResponseModal = true;
+    setTimeout(() => {
+  if (this.showResponseModal) {
+    this.closeResponseModal();
   }
-}
+}, 3000);
+
+    this.isSubmitting = false;
+    }
+  },
+
+    resetComplaintForm() {
+      this.complaintType = '';
+      this.complaintDescription = '';
+      this.uploadedPhoto = null;
+    },
+
+     statusBorderClass(status) {
+    switch (status.toLowerCase()) {
+      case 'pending':
+        return 'border-pending';
+      case 'approved':
+        return 'border-approved';
+      case 'rejected':
+        return 'border-rejected';
+      default:
+        return 'border-default';
+    }
+  },
+  },
+  mounted() {
+    this.fetchStudentComplaints();
+  }
+};
 </script>
+
 
 
 <style scoped>
@@ -206,10 +290,6 @@ export default {
  
 }
 
-.status-card {
-  width: 400px;
-}
-
 .form-group {
   margin-bottom: 20px;
 }
@@ -241,51 +321,6 @@ textarea.form-input {
   resize: vertical;
 }
 
-.status-timeline {
-  position: relative;
-  padding-left: 30px;
-  margin-top: 20px;
-}
-
-.status-timeline::before {
-  content: '';
-  position: absolute;
-  left: 15px;
-  top: 0;
-  bottom: 0;
-  width: 2px;
-  background: #ddd;
-}
-
-.status-step {
-  position: relative;
-  margin-bottom: 30px;
-  padding-bottom: 20px;
-}
-
-.status-step:last-child {
-  margin-bottom: 0;
-  padding-bottom: 0;
-}
-
-.step-number {
-  position: absolute;
-  left: -30px;
-  top: 0;
-  width: 30px;
-  height: 30px;
-  border-radius: 50%;
-  background: #ddd;
-  color: white;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: bold;
-}
-
-.status-step.active .step-number {
-  background: #1BBC9B;
-}
 .request-container1 {
   height: 100vh;
   display: flex;
@@ -332,7 +367,7 @@ padding: 3rem 2rem;
 
 .submit-wrapper {
   display: flex;
-  justify-content: center;
+  justify-content: space-between;
   margin-top: 25px;
 }
 
@@ -347,6 +382,7 @@ padding: 3rem 2rem;
   cursor: pointer;
   transition: all 0.3s;
   width: 200px;
+  margin-left: 50px;
 }
 
 .submit-btn:hover {
@@ -374,4 +410,268 @@ padding: 3rem 2rem;
     padding: 20px;
   }
 }
+.complaint-history {
+  margin-top: 40px;
+  background: #fff;
+  padding: 25px;
+  border-radius: 12px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+}
+
+.history-heading {
+  font-size: 22px;
+  color: #1BBC9B;
+  margin-bottom: 20px;
+  border-bottom: 1px solid #ddd;
+  padding-bottom: 8px;
+}
+
+.history-card {
+  padding: 15px;
+  margin-bottom: 15px;
+  background: #f9f9f9;
+  border-radius: 10px;
+  border-left: 5px solid #1BBC9B;
+}
+
+.complaint-image {
+  margin-top: 10px;
+  max-width: 100px;
+  border-radius: 6px;
+  border: 1px solid #ddd;
+}
+
+.complaint-history {
+  margin-top: 40px;
+  background: #ffffff;
+  padding: 30px;
+  border-radius: 16px;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.08);
+}
+
+.complaint-history h2 {
+  font-size: 26px;
+  color: #1BBC9B;
+  margin-bottom: 24px;
+  font-weight: bold;
+  text-align: left;
+}
+
+.complaint-card {
+  background: #f9f9f9;
+  padding: 20px 24px;
+  margin-bottom: 20px;
+  border-radius: 12px;
+  border-left: 5px solid #1BBC9B;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+  transition: transform 0.2s;
+}
+
+.complaint-card:hover {
+  transform: translateY(-2px);
+  background: #f0fdfc;
+}
+
+.complaint-row {
+  display: flex;
+  margin-bottom: 8px;
+  font-size: 16px;
+  color: #555;
+}
+
+.complaint-row strong {
+  width: 120px;
+  font-weight: 600;
+  color: #333;
+}
+
+.history-btn {
+  background: #1BBC9B;
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+  margin-left: 16px;
+  margin-right: 80px;
+}
+
+.history-btn:hover {
+  background: #15967D;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(27, 188, 155, 0.3);
+}
+
+/* Modal Styles */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0,0,0,0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
+
+.modal-content {
+  background: #fff;
+  padding: 30px;
+  border-radius: 12px;
+  max-height: 80vh;
+  overflow-y: auto;
+  width: 90%;
+  max-width: 700px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+  position: relative;
+}
+
+.modal-content h2{
+color:#1BBC9B;
+text-align: center;
+margin-bottom: 10px;
+font-size: 27px;
+}
+
+.close-btn {
+  position: absolute;
+  top: 12px;
+  right: 16px;
+  background: transparent;
+  border: none;
+  font-size: 24px;
+  font-weight: bold;
+  cursor: pointer;
+  color: #888;
+}
+
+.complaint-card {
+  background: #f9f9f9;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 16px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+  border-left: 5px solid transparent;
+}
+
+/* Border colors based on status */
+.border-pending {
+  border-left-color: rgb(219, 229, 17); /* orange */
+}
+
+.border-approved {
+  border-left-color: #1BBC9B; /* green */
+}
+
+.border-rejected {
+  border-left-color: #e74c3c; /* red */
+}
+
+/* .modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 999;
+}
+
+.success-modal {
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 30px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+  text-align: center;
+  max-width: 400px;
+  width: 90%;
+}
+
+.success-modal h3 {
+  margin-bottom: 12px;
+  color: #1BBC9B;
+}
+
+.success-modal p {
+  margin-bottom: 20px;
+  color: #444;
+}
+
+.success-modal button {
+  background-color: #1BBC9B;
+  color: white;
+  padding: 10px 20px;
+  border: none;
+  border-radius: 6px;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.success-modal button:hover {
+  background-color: #17a589;
+} */
+.modal-overlay {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 999;
+}
+
+.response-modal {
+  background: #fff;
+  border-radius: 10px;
+  padding: 25px;
+  text-align: center;
+  max-width: 400px;
+  width: 90%;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
+}
+
+.response-modal.success h3 {
+  color: #1BBC9B;
+}
+
+.response-modal.error h3 {
+  color: #e74c3c;
+}
+
+.response-modal p {
+  margin: 15px 0;
+  color: #333;
+}
+
+.response-modal button {
+  background-color: #1BBC9B;
+  color: white;
+  border: none;
+  padding: 8px 18px;
+  border-radius: 6px;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.response-modal button:hover {
+  background-color: #16a085;
+}
+
+.no-complaints {
+  text-align: center;
+  font-style: italic;
+  color: #777;
+  padding: 20px 0;
+  font-size: 18px;
+}
+
 </style>
